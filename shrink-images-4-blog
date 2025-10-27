@@ -1,0 +1,18 @@
+#!/bin/bash
+input_dir="blog_photos"
+output_dir="blog_photos_optimized"
+size_max=500
+
+for img in "$input_dir"/*; do
+  base_name=$(basename "$img")
+  output_file="$output_dir/${base_name%.*}-mod.webp"
+
+  magick $img \
+    -auto-orient \
+    -quality 90 \
+    -strip \
+    -adaptive-resize "${size_max}x${size_max}>" \
+    "$output_file"
+done
+
+
