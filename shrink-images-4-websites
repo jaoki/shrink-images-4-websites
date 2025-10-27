@@ -1,6 +1,6 @@
 #!/bin/bash
-input_dir="blog_photos"
-output_dir="blog_photos_optimized"
+input_dir="images"
+output_dir="images_optimized"
 size_max=500
 
 for img in "$input_dir"/*; do
