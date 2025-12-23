@@ -1,18 +1,52 @@
 #!/bin/bash
+
+# Usage:
+#   ./shrink-images-4-websites "Your watermark text"
+#
+# The first argument is the watermark text that will be rendered
+# diagonally from the bottom-left to the top-right of each image.
+
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 \"Watermark text\"" >&2
+  exit 1
+fi
+
+watermark_text="$1"
+
 input_dir="images"
 output_dir="images_optimized"
-size_max=500
+size_max=600
+
+# Make watermark canvas about 3/5 of the max image size
+wm_size=$(( size_max * 3 / 5 ))
+
+mkdir -p "$output_dir"
 
 for img in "$input_dir"/*; do
+  [ -e "$img" ] || continue
+
   base_name=$(basename "$img")
   output_file="$output_dir/${base_name%.*}-mod.webp"
 
-  magick $img \
+  # Resize and optimize, then add a diagonal watermark running
+  # from bottom-left to top-right across the image.
+  magick "$img" \
     -auto-orient \
     -quality 90 \
     -strip \
     -adaptive-resize "${size_max}x${size_max}>" \
+    \( -background none \
+       -fill "rgba(255,255,255,0.3)" \
+       -stroke "rgba(0,0,0,0.7)" \
+       -strokewidth 1 \
+       -gravity center \
+       -font "Helvetica" \
+       -size "${wm_size}x${wm_size}" \
+       label:"$watermark_text" \
+       -rotate -25 \) \
+    -gravity center -compose over -composite \
     "$output_file"
 done
-
 
