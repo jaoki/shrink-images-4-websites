@@ -24,6 +24,12 @@ wm_size=$(( size_max * 3 / 5 ))
 
 mkdir -p "$output_dir"
 
+# Check if destination directory is empty
+if [ "$(ls "$output_dir" 2>/dev/null)" ]; then
+  echo "Error: Destination directory '$output_dir' is not empty." >&2
+  exit 1
+fi
+
 for img in "$input_dir"/*; do
   [ -e "$img" ] || continue
 
