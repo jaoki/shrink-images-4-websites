@@ -1,19 +1,52 @@
 #!/bin/bash
 
 # Usage:
-#   ./shrink-images-4-websites "Your watermark text"
+#   ./shrink-images-4-websites (--no-watermark | --watermark "Watermark text")
 #
-# The first argument is the watermark text that will be rendered
-# diagonally from the bottom-left to the top-right of each image.
+# Options:
+#   --no-watermark         Skip adding watermark to images
+#   --watermark TEXT       Add watermark text to images
+#
+# Either --no-watermark flag or --watermark with text must be provided.
+# If watermark text is provided (and --no-watermark is not set),
+# it will be rendered diagonally from the bottom-left to the top-right
+# of each image.
 
 set -euo pipefail
 
-if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 \"Watermark text\"" >&2
+no_watermark=false
+watermark_text=""
+
+# Parse arguments
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --no-watermark)
+      no_watermark=true
+      shift
+      ;;
+    --watermark)
+      if [ "$#" -lt 2 ]; then
+        echo "Error: --watermark requires a text argument." >&2
+        echo "Usage: $0 (--no-watermark | --watermark \"Watermark text\")" >&2
+        exit 1
+      fi
+      watermark_text="$2"
+      shift 2
+      ;;
+    *)
+      echo "Error: Unexpected argument: $1" >&2
+      echo "Usage: $0 (--no-watermark | --watermark \"Watermark text\")" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Validate that either --no-watermark or watermark_text is provided
+if [ "$no_watermark" = false ] && [ -z "$watermark_text" ]; then
+  echo "Error: Either --no-watermark flag or --watermark with text must be provided." >&2
+  echo "Usage: $0 (--no-watermark | --watermark \"Watermark text\")" >&2
   exit 1
 fi
-
-watermark_text="$1"
 
 input_dir="images"
 output_dir="images_optimized"
@@ -36,23 +69,34 @@ for img in "$input_dir"/*; do
   base_name=$(basename "$img")
   output_file="$output_dir/${base_name%.*}-mod.webp"
 
-  # Resize and optimize, then add a diagonal watermark running
-  # from bottom-left to top-right across the image.
-  magick "$img" \
-    -auto-orient \
-    -quality 90 \
-    -strip \
-    -adaptive-resize "${size_max}x${size_max}>" \
-    \( -background none \
-       -fill "rgba(255,255,255,0.3)" \
-       -stroke "rgba(0,0,0,0.7)" \
-       -strokewidth 1 \
-       -gravity center \
-       -font "Helvetica" \
-       -size "${wm_size}x${wm_size}" \
-       label:"$watermark_text" \
-       -rotate -25 \) \
-    -gravity center -compose over -composite \
-    "$output_file"
+  # Build base ImageMagick command
+  magick_cmd=(
+    magick "$img"
+    -auto-orient
+    -quality 90
+    -strip
+    -adaptive-resize "${size_max}x${size_max}>"
+  )
+
+  # Add watermark if requested
+  if [ "$no_watermark" = false ] && [ -n "$watermark_text" ]; then
+    # Add a diagonal watermark running from bottom-left to top-right
+    magick_cmd+=(
+      \( -background none
+         -fill "rgba(255,255,255,0.3)"
+         -stroke "rgba(0,0,0,0.7)"
+         -strokewidth 1
+         -gravity center
+         -font "Helvetica"
+         -size "${wm_size}x${wm_size}"
+         label:"$watermark_text"
+         -rotate -25 \)
+      -gravity center -compose over -composite
+    )
+  fi
+
+  # Add output file and execute
+  magick_cmd+=("$output_file")
+  "${magick_cmd[@]}"
 done
 
